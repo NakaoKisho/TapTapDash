@@ -5,7 +5,7 @@ plugins {
 }
 
 android {
-    namespace = "com.example.taptapdash.core"
+    namespace = "com.vegcale.taptaptap.core"
     compileSdk = 34
 
     defaultConfig {

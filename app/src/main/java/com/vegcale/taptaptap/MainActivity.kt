@@ -54,7 +54,7 @@ class MainActivity : ComponentActivity() {
                         Box(modifier = Modifier.fillMaxWidth()) {
                             val context = LocalContext.current
                             val adView = remember { AdView(context) }
-                            adView.adUnitId = "ca-app-pub-8476565332830580/9578392910"
+                            adView.adUnitId = BuildConfig.adUnitId
                             val adSize = AdSize.getCurrentOrientationAnchoredAdaptiveBannerAdSize(LocalContext.current, 360)
                             adView.setAdSize(adSize)
 

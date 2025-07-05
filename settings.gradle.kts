@@ -12,7 +12,7 @@ dependencyResolutionManagement {
         mavenCentral()
     }
 }
-rootProject.name = "TapTapDash"
+rootProject.name = "taptaptap"
 include(":app")
 include(":core")
 include(":feature:game")
