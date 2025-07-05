@@ -1,0 +1,10 @@
+/.gradle
+/.idea
+/app/build
+/core/build
+/feature/game/build
+/feature/settings/build
+*.hprof
+*.bat
+local.properties
+/app/release
