@@ -8,3 +8,4 @@
 *.bat
 local.properties
 /app/release
+.gitattributes
