@@ -1,8 +1,11 @@
 package com.vegcale.taptaptap.feature.game
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.ui.res.painterResource
+import com.vegcale.taptaptap.feature.game.R
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -12,6 +15,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
@@ -27,11 +31,15 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -41,6 +49,7 @@ fun GameScreen(
     viewModel: GameViewModel = hiltViewModel()
 ) {
     val gameState by viewModel.gameState.collectAsState()
+    val chickenState by viewModel.chickenState.collectAsState()
 
     when (gameState) {
         GameScreenState.Loading -> {
@@ -57,9 +66,16 @@ fun GameScreen(
         }
         is GameScreenState.Playing -> {
             val playingState = gameState as GameScreenState.Playing
-            PlayingScreen(playingState, onTap = { offset, width, height ->
-                viewModel.onTap(offset, width, height)
-            })
+            PlayingScreen(
+                playingState,
+                chickenState,
+                onTap = { offset, screenWidth, screenHeight ->
+                    viewModel.onTap(offset, screenWidth, screenHeight)
+                },
+                onChickenTap = { offset, screenWidth, screenHeight, density ->
+                    viewModel.onChickenTap(offset, screenWidth, screenHeight, density)
+                }
+            )
         }
         is GameScreenState.GameOver -> {
             val gameOverState = gameState as GameScreenState.GameOver
@@ -105,24 +121,54 @@ fun StartScreen(onStartGame: () -> Unit) {
 }
 
 @Composable
-fun PlayingScreen(playingState: GameScreenState.Playing, onTap: (Offset, Float, Float) -> Unit) {
+fun PlayingScreen(
+    playingState: GameScreenState.Playing,
+    chickenState: ChickenState,
+    onTap: (Offset, Float, Float) -> Unit,
+    onChickenTap: (Offset, Float, Float, Float) -> Boolean
+) {
+    val density = LocalDensity.current.density
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
         val width = constraints.maxWidth.toFloat()
         val height = constraints.maxHeight.toFloat()
 
-        Canvas(modifier = Modifier
-            .fillMaxSize()
-            .pointerInput(Unit) { // Unitキーで再起動を防止
-                detectTapGestures { offset ->
-                    onTap(offset, width, height)
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .pointerInput(Unit) {
+                    detectTapGestures {
+                        if (!onChickenTap(it, width, height, density)) {
+                            onTap(it, width, height)
+                        }
+                    }
                 }
-            }) {
+        ) {
             // Draw target
-            drawCircle(
-                color = Color(0xFFFF5722),
-                radius = playingState.targetRadius,
-                center = Offset(playingState.targetX * width, playingState.targetY * height)
-            )
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                drawCircle(
+                    color = Color(0xFFFF5722),
+                    radius = playingState.targetRadius,
+                    center = Offset(playingState.targetX * width, playingState.targetY * height)
+                )
+            }
+
+            // Draw chicken
+            if (chickenState.isVisible) {
+                Image(
+                    painter = painterResource(id = R.drawable.chicken),
+                    contentDescription = "Chicken",
+                    colorFilter = if (chickenState.isRaging) ColorFilter.tint(Color.Red) else null,
+                    modifier = Modifier
+                        .size(chickenState.size.dp)
+                        .offset { 
+                            IntOffset(
+                                (chickenState.x * width - (chickenState.size * density) / 2).toInt(),
+                                (chickenState.y * height - (chickenState.size * density) / 2).toInt()
+                            )
+                        }
+                        .rotate(chickenState.rotation)
+                )
+            }
         }
 
         Column(modifier = Modifier
