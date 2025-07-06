@@ -30,6 +30,7 @@ import com.google.android.gms.ads.AdView
 import com.google.android.gms.ads.MobileAds
 import com.vegcale.taptaptap.feature.game.GameScreen
 import com.vegcale.taptaptap.feature.settings.SettingsScreen
+import com.vegcale.taptaptap.feature.shop.ShopScreen
 import com.vegcale.taptaptap.ui.theme.taptaptapTheme
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
@@ -91,7 +92,10 @@ fun TapTapTapApp() {
             GameScreen()
         }
         composable("settings") {
-            SettingsScreen()
+            SettingsScreen(navController = navController)
+        }
+        composable("shop") {
+            ShopScreen(navController = navController)
         }
     }
 }
