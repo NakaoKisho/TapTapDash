@@ -10,12 +10,12 @@ plugins {
 
 android {
     namespace = "com.vegcale.taptaptap"
-    compileSdk = 34
+    compileSdk = 35
 
     defaultConfig {
         applicationId = "com.vegcale.taptaptap"
         minSdk = 24
-        targetSdk = 34
+        targetSdk = 35
         versionCode = 2
         versionName = "1.1"
 

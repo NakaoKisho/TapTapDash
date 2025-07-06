@@ -7,7 +7,7 @@ plugins {
 
 android {
     namespace = "com.vegcale.taptaptap.feature.game"
-    compileSdk = 34
+    compileSdk = 35
 
     defaultConfig {
         minSdk = 24
