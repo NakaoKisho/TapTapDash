@@ -186,6 +186,12 @@ fun PlayingScreen(
                     color = Color(0xFF4CAF50),
                 )
                 Text(
+                    text = "Combo: ${playingState.comboCount}",
+                    fontSize = 28.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFFFFA000),
+                )
+                Text(
                     text = "Time: ${playingState.timeLeft.toInt()}s",
                     fontSize = 28.sp,
                     fontWeight = FontWeight.Bold,

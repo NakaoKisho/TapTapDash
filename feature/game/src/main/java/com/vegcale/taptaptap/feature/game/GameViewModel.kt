@@ -22,7 +22,9 @@ sealed interface GameScreenState {
         val timeLeft: Float,
         val targetX: Float,
         val targetY: Float,
-        val targetRadius: Float
+        val targetRadius: Float,
+        val comboCount: Int,
+        val lastTapTime: Long
     ) : GameScreenState
 
     data class GameOver(val finalScore: Int) : GameScreenState
@@ -64,8 +66,18 @@ class GameViewModel @Inject constructor() : ViewModel() {
     private var gameJob: kotlinx.coroutines.Job? = null
     private var chickenJob: kotlinx.coroutines.Job? = null
 
+    private val COMBO_TIMEOUT_MS = 1500L // 1.5 seconds
+
     fun startGame() {
-        _gameState.value = GameScreenState.Playing(score = 0, timeLeft = 30f, targetX = 0.5f, targetY = 0.5f, targetRadius = 50f)
+        _gameState.value = GameScreenState.Playing(
+            score = 0,
+            timeLeft = 30f,
+            targetX = 0.5f,
+            targetY = 0.5f,
+            targetRadius = 50f,
+            comboCount = 0,
+            lastTapTime = System.currentTimeMillis()
+        )
         gameJob?.cancel()
         chickenJob?.cancel()
 
@@ -146,9 +158,25 @@ class GameViewModel @Inject constructor() : ViewModel() {
                     (offset.y - targetCenterY).toDouble().pow(2)
         )
 
-        if (distance <= currentState.targetRadius) {
-            _gameState.value = currentState.copy(score = currentState.score + 1)
+        val HIT_AREA_BUFFER_PX = 15f // 赤い点の当たり判定を広げるためのバッファ値 (ピクセル)
+
+        if (distance <= currentState.targetRadius + HIT_AREA_BUFFER_PX) {
+            val currentTime = System.currentTimeMillis()
+            val newComboCount = if (currentTime - currentState.lastTapTime <= COMBO_TIMEOUT_MS) {
+                currentState.comboCount + 1
+            } else {
+                1
+            }
+            val scoreIncrease = 1 + (newComboCount / 5) // Example: +1 score for every 5 combo
+            _gameState.value = currentState.copy(
+                score = currentState.score + scoreIncrease,
+                comboCount = newComboCount,
+                lastTapTime = currentTime
+            )
             updateTargetPosition() // Update target immediately after a successful tap
+        } else {
+            // Missed tap, reset combo
+            _gameState.value = currentState.copy(comboCount = 0)
         }
     }
 
@@ -171,6 +199,10 @@ class GameViewModel @Inject constructor() : ViewModel() {
                     isRaging = true,
                     rageEndTime = System.currentTimeMillis() + 5000L // 5 seconds rage
                 )
+            }
+            // Tapping chicken resets combo
+            (_gameState.value as? GameScreenState.Playing)?.let { currentState ->
+                _gameState.value = currentState.copy(comboCount = 0)
             }
             return true
         }
