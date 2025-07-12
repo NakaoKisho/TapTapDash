@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     id("com.android.library")
     id("org.jetbrains.kotlin.android")
@@ -12,6 +14,17 @@ android {
     defaultConfig {
         minSdk = 24
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        val keystoreFile = project.rootProject.file("apikeys.properties")
+        val properties = Properties()
+        properties.load(keystoreFile.inputStream())
+
+        val rewardAdUnitId = properties.getProperty("rewardAdUnitId") ?: ""
+        buildConfigField(
+            type = "String",
+            name = "rewardAdUnitId",
+            value = rewardAdUnitId,
+        )
     }
 
     compileOptions {
@@ -23,6 +36,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
     composeOptions {
         kotlinCompilerExtensionVersion = "1.5.1"
@@ -44,6 +58,8 @@ dependencies {
 
     // Hilt
     implementation("com.google.dagger:hilt-android:2.50")
+    implementation("com.google.android.gms:play-services-ads-api:24.4.0")
+    implementation("androidx.appcompat:appcompat:1.7.1")
     ksp("com.google.dagger:hilt-compiler:2.50")
     implementation("androidx.hilt:hilt-navigation-compose:1.1.0")
 }

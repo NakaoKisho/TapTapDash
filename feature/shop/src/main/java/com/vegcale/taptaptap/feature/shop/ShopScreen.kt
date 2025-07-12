@@ -18,11 +18,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.navigation.NavController
 import androidx.hilt.navigation.compose.hiltViewModel
 
 @Composable
 fun ShopScreen(
-    viewModel: ShopViewModel = hiltViewModel()
+    viewModel: ShopViewModel = hiltViewModel(),
+    navController: NavController
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
@@ -32,6 +34,10 @@ fun ShopScreen(
             .padding(16.dp)
     ) {
         Text(text = "Shop")
+        Spacer(modifier = Modifier.height(16.dp))
+        Button(onClick = { navController.popBackStack() }) {
+            Text(text = "戻る")
+        }
         Spacer(modifier = Modifier.height(16.dp))
         Text(text = "Coins: ${uiState.coins}")
         Spacer(modifier = Modifier.height(16.dp))

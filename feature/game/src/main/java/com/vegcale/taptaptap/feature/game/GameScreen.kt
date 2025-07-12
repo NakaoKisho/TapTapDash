@@ -20,6 +20,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.ShoppingBag
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -34,6 +35,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -63,7 +65,10 @@ fun GameScreen(
             }
         }
         GameScreenState.Ready -> {
-            StartScreen(onStartGame = { viewModel.startGame() })
+            StartScreen(
+                onStartGame = { viewModel.startGame() },
+                onNavigateToShop = onNavigateToShop,
+            )
         }
         is GameScreenState.Playing -> {
             val playingState = gameState as GameScreenState.Playing
@@ -81,13 +86,16 @@ fun GameScreen(
         }
         is GameScreenState.GameOver -> {
             val gameOverState = gameState as GameScreenState.GameOver
-            GameOverScreen(gameOverState.finalScore, gameOverState.highScore, onRestartGame = { viewModel.resetGame() }, onNavigateToShop = onNavigateToShop)
+            GameOverScreen(gameOverState.finalScore, gameOverState.highScore, onRestartGame = { viewModel.resetGame() }, onNavigateToShop = onNavigateToShop, viewModel = viewModel)
         }
     }
 }
 
 @Composable
-fun StartScreen(onStartGame: () -> Unit) {
+fun StartScreen(
+    onStartGame: () -> Unit,
+    onNavigateToShop: () -> Unit,
+) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -118,6 +126,15 @@ fun StartScreen(onStartGame: () -> Unit) {
             Icon(Icons.Default.PlayArrow, contentDescription = "Start Game", modifier = Modifier.size(32.dp))
             Spacer(modifier = Modifier.size(8.dp))
             Text(modifier = Modifier.padding(10.dp), text = "ゲームスタート", fontSize = 24.sp)
+        }
+        Spacer(modifier = Modifier.height(16.dp))
+        Button(
+            onClick = onNavigateToShop,
+            shape = CircleShape
+        ) {
+            Icon(Icons.Default.ShoppingBag, contentDescription = "Go to Shop", modifier = Modifier.size(32.dp))
+            Spacer(modifier = Modifier.size(8.dp))
+            Text(modifier = Modifier.padding(10.dp), text = "スキンを変更する", fontSize = 24.sp)
         }
     }
 }
@@ -242,7 +259,13 @@ fun PlayingScreen(
 }
 
 @Composable
-fun GameOverScreen(finalScore: Int, highScore: Int, onRestartGame: () -> Unit, onNavigateToShop: () -> Unit) {
+fun GameOverScreen(
+    finalScore: Int,
+    highScore: Int,
+    onRestartGame: () -> Unit,
+    onNavigateToShop: () -> Unit,
+    viewModel: GameViewModel = hiltViewModel()
+) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -272,24 +295,34 @@ fun GameOverScreen(finalScore: Int, highScore: Int, onRestartGame: () -> Unit, o
             color = MaterialTheme.colorScheme.onBackground
         )
         Spacer(modifier = Modifier.height(64.dp))
-        Row {
-            Button(
-                onClick = onRestartGame,
-                shape = CircleShape
-            ) {
-                Icon(Icons.Default.Refresh, contentDescription = "Restart Game", modifier = Modifier.size(32.dp))
-                Spacer(modifier = Modifier.size(8.dp))
-                Text(modifier = Modifier.padding(10.dp), text = "もう一度プレイ", fontSize = 24.sp)
-            }
-            Spacer(modifier = Modifier.size(16.dp))
-            Button(
-                onClick = onNavigateToShop,
-                shape = CircleShape
-            ) {
-                Icon(Icons.Default.PlayArrow, contentDescription = "Go to Shop", modifier = Modifier.size(32.dp))
-                Spacer(modifier = Modifier.size(8.dp))
-                Text(modifier = Modifier.padding(10.dp), text = "ストア", fontSize = 24.sp)
-            }
+        Button(
+            onClick = onRestartGame,
+            shape = CircleShape
+        ) {
+            Icon(Icons.Default.Refresh, contentDescription = "Restart Game", modifier = Modifier.size(32.dp))
+            Spacer(modifier = Modifier.size(8.dp))
+            Text(modifier = Modifier.padding(10.dp), text = "もう一度プレイ", fontSize = 24.sp)
+        }
+        Spacer(modifier = Modifier.size(16.dp))
+        Button(
+            onClick = onNavigateToShop,
+            shape = CircleShape
+        ) {
+            Icon(Icons.Default.ShoppingBag, contentDescription = "Go to Shop", modifier = Modifier.size(32.dp))
+            Spacer(modifier = Modifier.size(8.dp))
+            Text(modifier = Modifier.padding(10.dp), text = "スキンを変更する", fontSize = 24.sp)
+        }
+        Spacer(modifier = Modifier.height(16.dp))
+
+        val activity = LocalContext.current.findActivity()
+        Button(
+            onClick = {
+                if (activity == null) return@Button
+                viewModel.showRewardedAd(activity) {  }
+            },
+            shape = CircleShape
+        ) {
+            Text(text = "広告を見て+10コイン", fontSize = 24.sp)
         }
     }
 }

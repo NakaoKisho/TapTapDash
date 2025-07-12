@@ -10,3 +10,4 @@ local.properties
 /app/release
 .gitattributes
 /feature/shop/build
+apikeys.properties

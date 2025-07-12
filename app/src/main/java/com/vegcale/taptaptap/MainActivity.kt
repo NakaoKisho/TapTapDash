@@ -39,6 +39,7 @@ import kotlinx.coroutines.launch
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
         setContent {
             taptaptapTheme {
                 Surface(
@@ -75,7 +76,6 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun BannerAd(adView: AdView, modifier: Modifier = Modifier) {
-    // Ad load does not work in preview mode because it requires a network connection.
     if (LocalInspectionMode.current) {
         Box { Text(text = "Google Mobile Ads preview banner.", modifier.align(Alignment.Center)) }
         return
@@ -95,7 +95,7 @@ fun TapTapTapApp() {
             SettingsScreen(navController = navController)
         }
         composable("shop") {
-            ShopScreen()
+            ShopScreen(navController = navController)
         }
     }
 }

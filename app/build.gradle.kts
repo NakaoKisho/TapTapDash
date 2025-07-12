@@ -34,6 +34,13 @@ android {
             name = "adUnitId",
             value = adUnitId,
         )
+
+        val rewardAdUnitId = properties.getProperty("rewardAdUnitId") ?: ""
+        buildConfigField(
+            type = "String",
+            name = "rewardAdUnitId",
+            value = rewardAdUnitId,
+        )
     }
 
     buildTypes {

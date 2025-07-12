@@ -1,10 +1,21 @@
 package com.vegcale.taptaptap.feature.game
 
+import android.app.Activity
+import android.content.Context
+import android.content.ContextWrapper
 import android.content.SharedPreferences
+import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.ui.geometry.Offset
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.google.android.gms.ads.AdError
+import com.google.android.gms.ads.AdRequest
+import com.google.android.gms.ads.FullScreenContentCallback
+import com.google.android.gms.ads.LoadAdError
+import com.google.android.gms.ads.rewarded.RewardedAd
+import com.google.android.gms.ads.rewarded.RewardedAdLoadCallback
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -74,7 +85,8 @@ data class ChickenState(
 
 @HiltViewModel
 class GameViewModel @Inject constructor(
-    private val sharedPreferences: SharedPreferences
+    private val sharedPreferences: SharedPreferences,
+    @ApplicationContext private val context: Context
 ) : ViewModel() {
 
     private val HIGH_SCORE_KEY = "high_score"
@@ -111,6 +123,49 @@ class GameViewModel @Inject constructor(
     private val COMBO_TIMEOUT_MS = 1500L // 1.5 seconds
     private val POWER_UP_DURATION_MS = 5000L // 5 seconds
     private val POWER_UP_SPAWN_INTERVAL_MS = 7000L // 7 seconds
+
+    private var rewardedAd: RewardedAd? = null
+    private val AD_UNIT_ID = BuildConfig.rewardAdUnitId
+
+    init {
+        loadRewardedAd()
+
+        if (BuildConfig.DEBUG) {
+            sharedPreferences.edit().putInt(COIN_KEY, 1000).apply()
+        }
+    }
+
+    private fun loadRewardedAd() {
+        RewardedAd.load(context, AD_UNIT_ID, AdRequest.Builder().build(), object : RewardedAdLoadCallback() {
+            override fun onAdFailedToLoad(adError: LoadAdError) {
+                rewardedAd = null
+            }
+
+            override fun onAdLoaded(ad: RewardedAd) {
+                rewardedAd = ad
+            }
+        })
+    }
+
+    fun showRewardedAd(activity: Activity, onAdDismissed: () -> Unit) {
+        rewardedAd?.fullScreenContentCallback = object : FullScreenContentCallback() {
+            override fun onAdDismissedFullScreenContent() {
+                rewardedAd = null
+                loadRewardedAd()
+                onAdDismissed()
+            }
+
+            override fun onAdFailedToShowFullScreenContent(adError: AdError) {
+                rewardedAd = null
+                loadRewardedAd()
+                onAdDismissed()
+            }
+        }
+        rewardedAd?.show(activity) { rewardItem ->
+            val currentCoins = sharedPreferences.getInt(COIN_KEY, 0)
+            sharedPreferences.edit().putInt(COIN_KEY, currentCoins + rewardItem.amount).apply()
+        }
+    }
 
     fun startGame() {
         val initialHighScore = sharedPreferences.getInt(HIGH_SCORE_KEY, 0)
@@ -368,4 +423,10 @@ class GameViewModel @Inject constructor(
         _powerUps.value = emptyList()
         _gameState.value = GameScreenState.Ready
     }
+}
+
+fun Context.findActivity(): Activity? = when (this) {
+    is Activity -> this
+    is ContextWrapper -> baseContext.findActivity()
+    else -> null
 }
