@@ -50,6 +50,7 @@ fun GameScreen(
 ) {
     val gameState by viewModel.gameState.collectAsState()
     val chickenState by viewModel.chickenState.collectAsState()
+    val powerUps by viewModel.powerUps.collectAsState()
 
     when (gameState) {
         GameScreenState.Loading -> {
@@ -69,6 +70,7 @@ fun GameScreen(
             PlayingScreen(
                 playingState,
                 chickenState,
+                powerUps,
                 onTap = { offset, screenWidth, screenHeight ->
                     viewModel.onTap(offset, screenWidth, screenHeight)
                 },
@@ -79,7 +81,7 @@ fun GameScreen(
         }
         is GameScreenState.GameOver -> {
             val gameOverState = gameState as GameScreenState.GameOver
-            GameOverScreen(gameOverState.finalScore, onRestartGame = { viewModel.resetGame() })
+            GameOverScreen(gameOverState.finalScore, gameOverState.highScore, onRestartGame = { viewModel.resetGame() })
         }
     }
 }
@@ -124,6 +126,7 @@ fun StartScreen(onStartGame: () -> Unit) {
 fun PlayingScreen(
     playingState: GameScreenState.Playing,
     chickenState: ChickenState,
+    powerUps: List<PowerUp>,
     onTap: (Offset, Float, Float) -> Unit,
     onChickenTap: (Offset, Float, Float, Float) -> Boolean
 ) {
@@ -144,9 +147,10 @@ fun PlayingScreen(
                 }
         ) {
             // Draw target
+            val targetColor = Color(0xFFFF5722)
             Canvas(modifier = Modifier.fillMaxSize()) {
                 drawCircle(
-                    color = Color(0xFFFF5722),
+                    color = targetColor,
                     radius = playingState.targetRadius,
                     center = Offset(playingState.targetX * width, playingState.targetY * height)
                 )
@@ -162,18 +166,38 @@ fun PlayingScreen(
                         .size(chickenState.size.dp)
                         .offset { 
                             IntOffset(
-                                (chickenState.x * width - (chickenState.size * density) / 2).toInt(),
-                                (chickenState.y * height - (chickenState.size * density) / 2).toInt()
+                                (chickenState.x * width - (chickenState.size * density) / 2f).toInt(),
+                                (chickenState.y * height - (chickenState.size * density) / 2f).toInt()
                             )
                         }
                         .rotate(chickenState.rotation)
                 )
             }
+
+            // Draw power-ups
+            powerUps.forEach { powerUp ->
+                val powerUpColor = when (powerUp.type) {
+                    PowerUpType.TimeFreeze -> Color(0xFF9C27B0) // Purple
+                    PowerUpType.ScoreMultiplier -> Color(0xFFFFC107) // Amber
+                    PowerUpType.ChickenStop -> Color(0xFF00BCD4) // Cyan
+                    PowerUpType.TargetRefresh -> Color(0xFF4CAF50) // Green
+                }
+                Canvas(modifier = Modifier.fillMaxSize()) {
+                    drawCircle(
+                        color = powerUpColor,
+                        radius = powerUp.radius,
+                        center = Offset(powerUp.x * width, powerUp.y * height)
+                    )
+                }
+            }
         }
 
-        Column(modifier = Modifier
-            .fillMaxWidth()
-            .padding(16.dp)) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.Top
+        ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -198,12 +222,22 @@ fun PlayingScreen(
                     color = Color(0xFF2196F3),
                 )
             }
+            // Power-up active indicators
+            if (playingState.isScoreMultiplierActive) {
+                Text("Score x2!", color = Color.Yellow, fontSize = 20.sp)
+            }
+            if (playingState.isTimeFreezeActive) {
+                Text("Time Freeze!", color = Color.Magenta, fontSize = 20.sp)
+            }
+            if (playingState.isChickenStopActive) {
+                Text("Chicken Stop!", color = Color.Cyan, fontSize = 20.sp)
+            }
         }
     }
 }
 
 @Composable
-fun GameOverScreen(finalScore: Int, onRestartGame: () -> Unit) {
+fun GameOverScreen(finalScore: Int, highScore: Int, onRestartGame: () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -222,6 +256,13 @@ fun GameOverScreen(finalScore: Int, onRestartGame: () -> Unit) {
         Text(
             text = "最終スコア: $finalScore",
             fontSize = 36.sp,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onBackground
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+        Text(
+            text = "ハイスコア: $highScore",
+            fontSize = 28.sp,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.onBackground
         )
