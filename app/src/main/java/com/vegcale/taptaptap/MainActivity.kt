@@ -89,13 +89,13 @@ fun TapTapTapApp() {
     val navController = rememberNavController()
     NavHost(navController = navController, startDestination = "game") {
         composable("game") {
-            GameScreen()
+            GameScreen(onNavigateToShop = { navController.navigate("shop") })
         }
         composable("settings") {
             SettingsScreen(navController = navController)
         }
         composable("shop") {
-            ShopScreen(navController = navController)
+            ShopScreen()
         }
     }
 }

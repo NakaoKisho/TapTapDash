@@ -68,7 +68,8 @@ data class ChickenState(
     val isVisible: Boolean,
     val speedX: Float,
     val speedY: Float,
-    val rotation: Float
+    val rotation: Float,
+    val skinId: String
 )
 
 @HiltViewModel
@@ -77,9 +78,12 @@ class GameViewModel @Inject constructor(
 ) : ViewModel() {
 
     private val HIGH_SCORE_KEY = "high_score"
+    private val COIN_KEY = "coin"
 
     private val _gameState = MutableStateFlow<GameScreenState>(GameScreenState.Ready)
     val gameState: StateFlow<GameScreenState> = _gameState.asStateFlow()
+
+    private val SELECTED_SKIN_KEY = "selected_skin"
 
     private val _chickenState = MutableStateFlow(
         ChickenState(
@@ -91,7 +95,8 @@ class GameViewModel @Inject constructor(
             isVisible = true,
             speedX = 0.005f,
             speedY = 0.005f,
-            rotation = 0f
+            rotation = 0f,
+            skinId = sharedPreferences.getString(SELECTED_SKIN_KEY, "default") ?: "default"
         )
     )
     val chickenState: StateFlow<ChickenState> = _chickenState.asStateFlow()
@@ -149,6 +154,8 @@ class GameViewModel @Inject constructor(
             if (finalScore > currentHighScore) {
                 sharedPreferences.edit().putInt(HIGH_SCORE_KEY, finalScore).apply()
             }
+            val coins = sharedPreferences.getInt(COIN_KEY, 0)
+            sharedPreferences.edit().putInt(COIN_KEY, coins + finalScore / 10).apply()
             _gameState.value = GameScreenState.GameOver(finalScore, sharedPreferences.getInt(HIGH_SCORE_KEY, 0))
         }
         startChickenMovement()

@@ -16,8 +16,8 @@ android {
         applicationId = "com.vegcale.taptaptap"
         minSdk = 24
         targetSdk = 35
-        versionCode = 3
-        versionName = "2"
+        versionCode = 4
+        versionName = "4"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -70,6 +70,7 @@ dependencies {
     implementation(project(":core"))
     implementation(project(":feature:game"))
     implementation(project(":feature:settings"))
+    implementation(project(":feature:shop"))
     implementation(project(":feature:shop"))
 
     implementation("androidx.core:core-ktx:1.12.0")

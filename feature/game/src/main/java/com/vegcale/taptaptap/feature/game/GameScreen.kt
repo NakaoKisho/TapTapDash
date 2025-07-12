@@ -4,8 +4,6 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.ui.res.painterResource
-import com.vegcale.taptaptap.feature.game.R
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -37,6 +35,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.IntOffset
@@ -46,6 +45,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 
 @Composable
 fun GameScreen(
+    onNavigateToShop: () -> Unit,
     viewModel: GameViewModel = hiltViewModel()
 ) {
     val gameState by viewModel.gameState.collectAsState()
@@ -81,7 +81,7 @@ fun GameScreen(
         }
         is GameScreenState.GameOver -> {
             val gameOverState = gameState as GameScreenState.GameOver
-            GameOverScreen(gameOverState.finalScore, gameOverState.highScore, onRestartGame = { viewModel.resetGame() })
+            GameOverScreen(gameOverState.finalScore, gameOverState.highScore, onRestartGame = { viewModel.resetGame() }, onNavigateToShop = onNavigateToShop)
         }
     }
 }
@@ -158,8 +158,13 @@ fun PlayingScreen(
 
             // Draw chicken
             if (chickenState.isVisible) {
+                val chickenDrawable = when (chickenState.skinId) {
+                    "gold" -> R.drawable.ic_chicken_gold
+                    "ninja" -> R.drawable.ic_chicken_ninja
+                    else -> R.drawable.chicken
+                }
                 Image(
-                    painter = painterResource(id = R.drawable.chicken),
+                    painter = painterResource(id = chickenDrawable),
                     contentDescription = "Chicken",
                     colorFilter = if (chickenState.isRaging) ColorFilter.tint(Color.Red) else null,
                     modifier = Modifier
@@ -237,7 +242,7 @@ fun PlayingScreen(
 }
 
 @Composable
-fun GameOverScreen(finalScore: Int, highScore: Int, onRestartGame: () -> Unit) {
+fun GameOverScreen(finalScore: Int, highScore: Int, onRestartGame: () -> Unit, onNavigateToShop: () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -267,13 +272,24 @@ fun GameOverScreen(finalScore: Int, highScore: Int, onRestartGame: () -> Unit) {
             color = MaterialTheme.colorScheme.onBackground
         )
         Spacer(modifier = Modifier.height(64.dp))
-        Button(
-            onClick = onRestartGame,
-            shape = CircleShape
-        ) {
-            Icon(Icons.Default.Refresh, contentDescription = "Restart Game", modifier = Modifier.size(32.dp))
-            Spacer(modifier = Modifier.size(8.dp))
-            Text(modifier = Modifier.padding(10.dp), text = "もう一度プレイ", fontSize = 24.sp)
+        Row {
+            Button(
+                onClick = onRestartGame,
+                shape = CircleShape
+            ) {
+                Icon(Icons.Default.Refresh, contentDescription = "Restart Game", modifier = Modifier.size(32.dp))
+                Spacer(modifier = Modifier.size(8.dp))
+                Text(modifier = Modifier.padding(10.dp), text = "もう一度プレイ", fontSize = 24.sp)
+            }
+            Spacer(modifier = Modifier.size(16.dp))
+            Button(
+                onClick = onNavigateToShop,
+                shape = CircleShape
+            ) {
+                Icon(Icons.Default.PlayArrow, contentDescription = "Go to Shop", modifier = Modifier.size(32.dp))
+                Spacer(modifier = Modifier.size(8.dp))
+                Text(modifier = Modifier.padding(10.dp), text = "ストア", fontSize = 24.sp)
+            }
         }
     }
 }
