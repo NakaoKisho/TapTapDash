@@ -24,7 +24,6 @@ sealed interface GameScreenState {
         val targetX: Float,
         val targetY: Float,
         val targetRadius: Float,
-        val targetType: TargetType,
         val comboCount: Int,
         val lastTapTime: Long,
         val isScoreMultiplierActive: Boolean,
@@ -38,15 +37,17 @@ sealed interface GameScreenState {
     data class GameOver(val finalScore: Int, val highScore: Int) : GameScreenState
 }
 
-sealed class TargetType {
-    object Red : TargetType()
-}
-
 sealed class PowerUpType {
     object TimeFreeze : PowerUpType()
     object ScoreMultiplier : PowerUpType()
     object ChickenStop : PowerUpType()
     object TargetRefresh : PowerUpType()
+
+    companion object {
+        fun values(): Array<PowerUpType> {
+            return arrayOf(TimeFreeze, ScoreMultiplier, ChickenStop, TargetRefresh)
+        }
+    }
 }
 
 data class PowerUp(
@@ -103,7 +104,7 @@ class GameViewModel @Inject constructor(
     private var powerUpJob: kotlinx.coroutines.Job? = null
 
     private val COMBO_TIMEOUT_MS = 1500L // 1.5 seconds
-    private val POWER_UP_DURATION_MS = 2000L // 2 seconds
+    private val POWER_UP_DURATION_MS = 5000L // 5 seconds
     private val POWER_UP_SPAWN_INTERVAL_MS = 7000L // 7 seconds
 
     fun startGame() {
@@ -115,7 +116,6 @@ class GameViewModel @Inject constructor(
             targetX = Random.nextFloat(),
             targetY = Random.nextFloat(),
             targetRadius = 30 + Random.nextFloat() * (70 - 30),
-            targetType = TargetType.Red,
             comboCount = 0,
             lastTapTime = System.currentTimeMillis(),
             isScoreMultiplierActive = false,
@@ -131,7 +131,7 @@ class GameViewModel @Inject constructor(
         powerUpJob?.cancel()
 
         gameJob = viewModelScope.launch {
-            var timeLeft = 30f
+            var timeLeft = (_gameState.value as GameScreenState.Playing).timeLeft
             while (timeLeft > 0.1f) {
                 delay(100) // Update every 0.1 seconds
                 val currentState = _gameState.value
@@ -159,9 +159,15 @@ class GameViewModel @Inject constructor(
         chickenJob = viewModelScope.launch {
             while (true) {
                 delay(16) // Update chicken position every 16ms (around 60fps)
+                val currentState = _gameState.value
+                if (currentState is GameScreenState.Playing && currentState.isChickenStopActive) {
+                    continue
+                }
+
                 _chickenState.value = _chickenState.value.let { currentChicken ->
-                    var newX = currentChicken.x + currentChicken.speedX
-                    var newY = currentChicken.y + currentChicken.speedY
+                    val speedMultiplier = if (currentChicken.isRaging) 1.5f else 1f
+                    var newX = currentChicken.x + currentChicken.speedX * speedMultiplier
+                    var newY = currentChicken.y + currentChicken.speedY * speedMultiplier
                     var newSpeedX = currentChicken.speedX
                     var newSpeedY = currentChicken.speedY
 
@@ -188,15 +194,19 @@ class GameViewModel @Inject constructor(
 
     private fun startPowerUpGenerationAndManagement() {
         powerUpJob = viewModelScope.launch {
+            val powerUpTypes = PowerUpType.values().toList()
+            var nextPowerUpIndex = 0
+
             while (true) {
                 delay(POWER_UP_SPAWN_INTERVAL_MS) // Spawn power-up periodically
                 if (_powerUps.value.isEmpty()) { // Only one power-up at a time
-                    val newPowerUpType = when (Random.nextInt(4)) {
-                        0 -> PowerUpType.TimeFreeze
-                        1 -> PowerUpType.ScoreMultiplier
-                        2 -> PowerUpType.ChickenStop
-                        else -> PowerUpType.TargetRefresh
+                    if (nextPowerUpIndex >= powerUpTypes.size) {
+                        nextPowerUpIndex = 0
+                        powerUpTypes.shuffled()
                     }
+                    val newPowerUpType = powerUpTypes[nextPowerUpIndex]
+                    nextPowerUpIndex++
+
                     _powerUps.value = listOf(PowerUp(
                         id = System.nanoTime(),
                         x = Random.nextFloat(),
@@ -250,51 +260,32 @@ class GameViewModel @Inject constructor(
 
         if (tappedPowerUp != null) {
             _powerUps.value = emptyList() // Remove power-up after tap
-            var newScore = currentState.score
-            var newTimeLeft = currentState.timeLeft
-            var newIsScoreMultiplierActive = currentState.isScoreMultiplierActive
-            var newIsTimeFreezeActive = currentState.isTimeFreezeActive
-            var newIsChickenStopActive = currentState.isChickenStopActive
-            var newScoreMultiplierEndTime = currentState.scoreMultiplierEndTime
-            var newTimeFreezeEndTime = currentState.timeFreezeEndTime
-            var newChickenStopEndTime = currentState.chickenStopEndTime
-
-            val activationTime = System.currentTimeMillis() + POWER_UP_DURATION_MS
 
             when (tappedPowerUp.type) {
                 PowerUpType.TimeFreeze -> {
-                    newIsTimeFreezeActive = true
-                    newTimeFreezeEndTime = activationTime
+                    _gameState.value = currentState.copy(
+                        isTimeFreezeActive = true,
+                        timeFreezeEndTime = System.currentTimeMillis() + 5000L // 5 seconds
+                    )
                 }
                 PowerUpType.ScoreMultiplier -> {
-                    newIsScoreMultiplierActive = true
-                    newScoreMultiplierEndTime = activationTime
+                    _gameState.value = currentState.copy(
+                        isScoreMultiplierActive = true,
+                        scoreMultiplierEndTime = System.currentTimeMillis() + 5000L // 5 seconds
+                    )
                 }
                 PowerUpType.ChickenStop -> {
-                    newIsChickenStopActive = true
-                    newChickenStopEndTime = activationTime
+                    _gameState.value = currentState.copy(
+                        isChickenStopActive = true,
+                        chickenStopEndTime = System.currentTimeMillis() + 3000L // 3 seconds
+                    )
                 }
                 PowerUpType.TargetRefresh -> {
-                    // Refresh target
                     _gameState.value = currentState.copy(
-                        targetX = Random.nextFloat(),
-                        targetY = Random.nextFloat(),
-                        targetRadius = 30 + Random.nextFloat() * (70 - 30),
-                        targetType = TargetType.Red
+                        timeLeft = currentState.timeLeft + 3f
                     )
                 }
             }
-            _gameState.value = currentState.copy(
-                score = newScore,
-                timeLeft = newTimeLeft,
-                isScoreMultiplierActive = newIsScoreMultiplierActive,
-                isTimeFreezeActive = newIsTimeFreezeActive,
-                isChickenStopActive = newIsChickenStopActive,
-                scoreMultiplierEndTime = newScoreMultiplierEndTime,
-                timeFreezeEndTime = newTimeFreezeEndTime,
-                chickenStopEndTime = newChickenStopEndTime,
-                lastTapTime = System.currentTimeMillis() // Reset last tap time for combo
-            )
 
             return // Power-up tapped, don't check for target tap
         }
@@ -316,13 +307,13 @@ class GameViewModel @Inject constructor(
             } else {
                 1
             }
-            val scoreIncrease = 1 + (newComboCount / 5)
+            val scoreMultiplier = if (currentState.isScoreMultiplierActive) 2 else 1
+            val scoreIncrease = (1 + (newComboCount / 5)) * scoreMultiplier
             _gameState.value = currentState.copy(
                 score = currentState.score + scoreIncrease,
                 targetX = Random.nextFloat(),
                 targetY = Random.nextFloat(),
                 targetRadius = 30 + Random.nextFloat() * (70 - 30),
-                targetType = TargetType.Red,
                 comboCount = newComboCount,
                 lastTapTime = currentTime
             )
@@ -349,7 +340,9 @@ class GameViewModel @Inject constructor(
             if (!currentChicken.isRaging) {
                 _chickenState.value = currentChicken.copy(
                     isRaging = true,
-                    rageEndTime = System.currentTimeMillis() + 5000L // 5 seconds rage
+                    rageEndTime = System.currentTimeMillis() + 5000L, // 5 seconds rage
+                    speedX = currentChicken.speedX * 1.5f,
+                    speedY = currentChicken.speedY * 1.5f
                 )
             }
             // Tapping chicken resets combo
@@ -364,6 +357,8 @@ class GameViewModel @Inject constructor(
     fun resetGame() {
         gameJob?.cancel()
         chickenJob?.cancel()
+        powerUpJob?.cancel()
+        _powerUps.value = emptyList()
         _gameState.value = GameScreenState.Ready
     }
 }

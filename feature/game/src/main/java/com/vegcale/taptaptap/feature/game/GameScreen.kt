@@ -180,7 +180,7 @@ fun PlayingScreen(
                     PowerUpType.TimeFreeze -> Color(0xFF9C27B0) // Purple
                     PowerUpType.ScoreMultiplier -> Color(0xFFFFC107) // Amber
                     PowerUpType.ChickenStop -> Color(0xFF00BCD4) // Cyan
-                    PowerUpType.TargetRefresh -> Color(0xFF795548) // Brown
+                    PowerUpType.TargetRefresh -> Color(0xFF4CAF50) // Green
                 }
                 Canvas(modifier = Modifier.fillMaxSize()) {
                     drawCircle(
