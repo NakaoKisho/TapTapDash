@@ -60,6 +60,7 @@ dependencies {
     implementation("com.google.dagger:hilt-android:2.50")
     implementation("com.google.android.gms:play-services-ads-api:24.4.0")
     implementation("androidx.appcompat:appcompat:1.7.1")
+    implementation("androidx.lifecycle:lifecycle-runtime-compose-android:2.9.2")
     ksp("com.google.dagger:hilt-compiler:2.50")
     implementation("androidx.hilt:hilt-navigation-compose:1.1.0")
 }

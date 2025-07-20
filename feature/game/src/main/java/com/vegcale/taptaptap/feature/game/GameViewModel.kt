@@ -4,7 +4,6 @@ import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
 import android.content.SharedPreferences
-import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.ui.geometry.Offset
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -20,11 +19,11 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 import kotlin.math.pow
 import kotlin.random.Random
-import kotlin.math.atan2
 
 sealed interface GameScreenState {
     object Loading : GameScreenState
@@ -75,7 +74,7 @@ data class ChickenState(
     val y: Float,
     val size: Float,
     val isRaging: Boolean,
-    val rageEndTime: Long,
+    val rageDuration: Float,
     val isVisible: Boolean,
     val speedX: Float,
     val speedY: Float,
@@ -103,7 +102,7 @@ class GameViewModel @Inject constructor(
             y = 0.5f,
             size = 60f,
             isRaging = false,
-            rageEndTime = 0L,
+            rageDuration = 0f,
             isVisible = true,
             speedX = 0.005f,
             speedY = 0.005f,
@@ -145,6 +144,12 @@ class GameViewModel @Inject constructor(
                 rewardedAd = ad
             }
         })
+    }
+
+    fun setSkinId() {
+        _chickenState.value = _chickenState.value.copy(
+            skinId = sharedPreferences.getString(SELECTED_SKIN_KEY, "default") ?: "default"
+        )
     }
 
     fun showRewardedAd(activity: Activity, onAdDismissed: () -> Unit) {
@@ -200,7 +205,24 @@ class GameViewModel @Inject constructor(
                         timeLeft -= 0.1f
                     }
                     _gameState.value = currentState.copy(timeLeft = timeLeft)
+
+                    if (_chickenState.value.rageDuration > 0f) {
+                        val restRangeDuration = _chickenState.value.rageDuration - 0.1f
+                        _chickenState.value = _chickenState.value.copy(rageDuration = restRangeDuration)
+                    } else {
+                        if (_chickenState.value.isRaging) {
+                            _chickenState.value = _chickenState.value.copy(
+                                isRaging = false,
+                                speedX = 0.005f,
+                                speedY = 0.005f,
+                            )
+                        }
+                    }
                 } else {
+                    if (_chickenState.value.isRaging) {
+                        _chickenState.value = _chickenState.value.copy(isRaging = false)
+                    }
+
                     break // Game is no longer playing
                 }
             }
@@ -402,7 +424,7 @@ class GameViewModel @Inject constructor(
             if (!currentChicken.isRaging) {
                 _chickenState.value = currentChicken.copy(
                     isRaging = true,
-                    rageEndTime = System.currentTimeMillis() + 5000L, // 5 seconds rage
+                    rageDuration = 5f, // 5 seconds rage
                     speedX = currentChicken.speedX * 1.5f,
                     speedY = currentChicken.speedY * 1.5f
                 )
@@ -422,6 +444,11 @@ class GameViewModel @Inject constructor(
         powerUpJob?.cancel()
         _powerUps.value = emptyList()
         _gameState.value = GameScreenState.Ready
+        _chickenState.value = _chickenState.value.copy(
+            isRaging = false,
+            speedX = 0.005f,
+            speedY = 0.005f,
+        )
     }
 }
 

@@ -37,6 +37,7 @@ import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -44,6 +45,8 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 
 @Composable
 fun GameScreen(
@@ -66,6 +69,7 @@ fun GameScreen(
         }
         GameScreenState.Ready -> {
             StartScreen(
+                setSkinId = { viewModel.setSkinId() },
                 onStartGame = { viewModel.startGame() },
                 onNavigateToShop = onNavigateToShop,
             )
@@ -93,9 +97,14 @@ fun GameScreen(
 
 @Composable
 fun StartScreen(
+    setSkinId: () -> Unit,
     onStartGame: () -> Unit,
     onNavigateToShop: () -> Unit,
 ) {
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
+        setSkinId()
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -176,14 +185,13 @@ fun PlayingScreen(
             // Draw chicken
             if (chickenState.isVisible) {
                 val chickenDrawable = when (chickenState.skinId) {
-                    "gold" -> R.drawable.ic_chicken_gold
-                    "ninja" -> R.drawable.ic_chicken_ninja
-                    else -> R.drawable.chicken
+                    "turtle" -> if (chickenState.isRaging) R.mipmap.angry_turtle else R.mipmap.turtle
+                    "ninja" -> if (chickenState.isRaging) R.mipmap.angry_ninja else R.mipmap.ninja
+                    else -> if (chickenState.isRaging) R.mipmap.angry_chicken else R.mipmap.chicken
                 }
                 Image(
                     painter = painterResource(id = chickenDrawable),
                     contentDescription = "Chicken",
-                    colorFilter = if (chickenState.isRaging) ColorFilter.tint(Color.Red) else null,
                     modifier = Modifier
                         .size(chickenState.size.dp)
                         .offset { 
@@ -192,7 +200,7 @@ fun PlayingScreen(
                                 (chickenState.y * height - (chickenState.size * density) / 2f).toInt()
                             )
                         }
-                        .rotate(chickenState.rotation)
+//                        .rotate(chickenState.rotation)
                 )
             }
 

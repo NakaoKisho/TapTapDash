@@ -21,6 +21,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
@@ -46,6 +48,10 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
+                    val windowInsetsController =
+                        WindowCompat.getInsetsController(window, window.decorView)
+                    windowInsetsController.hide(WindowInsetsCompat.Type.systemBars())
+
                     val scope = rememberCoroutineScope()
                     LaunchedEffect(Unit) {
                         scope.launch {
@@ -66,6 +72,7 @@ class MainActivity : ComponentActivity() {
 
                             BannerAd(adView, Modifier)
                         }
+
                         TapTapTapApp()
                     }
                 }

@@ -47,7 +47,7 @@ class ShopViewModel @Inject constructor(
 
             val skins = listOf(
                 Skin("default", "Default", 0, ownedSkins.contains("default"), selectedSkin == "default"),
-                Skin("gold", "Gold", 100, ownedSkins.contains("gold"), selectedSkin == "gold"),
+                Skin("turtle", "Turtle", 100, ownedSkins.contains("turtle"), selectedSkin == "turtle"),
                 Skin("ninja", "Ninja", 200, ownedSkins.contains("ninja"), selectedSkin == "ninja")
             )
 
