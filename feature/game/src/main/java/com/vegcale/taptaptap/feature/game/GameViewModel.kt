@@ -1,19 +1,29 @@
 package com.vegcale.taptaptap.feature.game
 
+import android.app.Activity
+import android.content.Context
+import android.content.ContextWrapper
 import android.content.SharedPreferences
 import androidx.compose.ui.geometry.Offset
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.google.android.gms.ads.AdError
+import com.google.android.gms.ads.AdRequest
+import com.google.android.gms.ads.FullScreenContentCallback
+import com.google.android.gms.ads.LoadAdError
+import com.google.android.gms.ads.rewarded.RewardedAd
+import com.google.android.gms.ads.rewarded.RewardedAdLoadCallback
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 import kotlin.math.pow
 import kotlin.random.Random
-import kotlin.math.atan2
 
 sealed interface GameScreenState {
     object Loading : GameScreenState
@@ -64,22 +74,27 @@ data class ChickenState(
     val y: Float,
     val size: Float,
     val isRaging: Boolean,
-    val rageEndTime: Long,
+    val rageDuration: Float,
     val isVisible: Boolean,
     val speedX: Float,
     val speedY: Float,
-    val rotation: Float
+    val rotation: Float,
+    val skinId: String
 )
 
 @HiltViewModel
 class GameViewModel @Inject constructor(
-    private val sharedPreferences: SharedPreferences
+    private val sharedPreferences: SharedPreferences,
+    @ApplicationContext private val context: Context
 ) : ViewModel() {
 
     private val HIGH_SCORE_KEY = "high_score"
+    private val COIN_KEY = "coin"
 
     private val _gameState = MutableStateFlow<GameScreenState>(GameScreenState.Ready)
     val gameState: StateFlow<GameScreenState> = _gameState.asStateFlow()
+
+    private val SELECTED_SKIN_KEY = "selected_skin"
 
     private val _chickenState = MutableStateFlow(
         ChickenState(
@@ -87,11 +102,12 @@ class GameViewModel @Inject constructor(
             y = 0.5f,
             size = 60f,
             isRaging = false,
-            rageEndTime = 0L,
+            rageDuration = 0f,
             isVisible = true,
             speedX = 0.005f,
             speedY = 0.005f,
-            rotation = 0f
+            rotation = 0f,
+            skinId = sharedPreferences.getString(SELECTED_SKIN_KEY, "default") ?: "default"
         )
     )
     val chickenState: StateFlow<ChickenState> = _chickenState.asStateFlow()
@@ -106,6 +122,55 @@ class GameViewModel @Inject constructor(
     private val COMBO_TIMEOUT_MS = 1500L // 1.5 seconds
     private val POWER_UP_DURATION_MS = 5000L // 5 seconds
     private val POWER_UP_SPAWN_INTERVAL_MS = 7000L // 7 seconds
+
+    private var rewardedAd: RewardedAd? = null
+    private val AD_UNIT_ID = BuildConfig.rewardAdUnitId
+
+    init {
+        loadRewardedAd()
+
+        if (BuildConfig.DEBUG) {
+            sharedPreferences.edit().putInt(COIN_KEY, 1000).apply()
+        }
+    }
+
+    private fun loadRewardedAd() {
+        RewardedAd.load(context, AD_UNIT_ID, AdRequest.Builder().build(), object : RewardedAdLoadCallback() {
+            override fun onAdFailedToLoad(adError: LoadAdError) {
+                rewardedAd = null
+            }
+
+            override fun onAdLoaded(ad: RewardedAd) {
+                rewardedAd = ad
+            }
+        })
+    }
+
+    fun setSkinId() {
+        _chickenState.value = _chickenState.value.copy(
+            skinId = sharedPreferences.getString(SELECTED_SKIN_KEY, "default") ?: "default"
+        )
+    }
+
+    fun showRewardedAd(activity: Activity, onAdDismissed: () -> Unit) {
+        rewardedAd?.fullScreenContentCallback = object : FullScreenContentCallback() {
+            override fun onAdDismissedFullScreenContent() {
+                rewardedAd = null
+                loadRewardedAd()
+                onAdDismissed()
+            }
+
+            override fun onAdFailedToShowFullScreenContent(adError: AdError) {
+                rewardedAd = null
+                loadRewardedAd()
+                onAdDismissed()
+            }
+        }
+        rewardedAd?.show(activity) { rewardItem ->
+            val currentCoins = sharedPreferences.getInt(COIN_KEY, 0)
+            sharedPreferences.edit().putInt(COIN_KEY, currentCoins + rewardItem.amount).apply()
+        }
+    }
 
     fun startGame() {
         val initialHighScore = sharedPreferences.getInt(HIGH_SCORE_KEY, 0)
@@ -140,7 +205,24 @@ class GameViewModel @Inject constructor(
                         timeLeft -= 0.1f
                     }
                     _gameState.value = currentState.copy(timeLeft = timeLeft)
+
+                    if (_chickenState.value.rageDuration > 0f) {
+                        val restRangeDuration = _chickenState.value.rageDuration - 0.1f
+                        _chickenState.value = _chickenState.value.copy(rageDuration = restRangeDuration)
+                    } else {
+                        if (_chickenState.value.isRaging) {
+                            _chickenState.value = _chickenState.value.copy(
+                                isRaging = false,
+                                speedX = 0.005f,
+                                speedY = 0.005f,
+                            )
+                        }
+                    }
                 } else {
+                    if (_chickenState.value.isRaging) {
+                        _chickenState.value = _chickenState.value.copy(isRaging = false)
+                    }
+
                     break // Game is no longer playing
                 }
             }
@@ -149,6 +231,8 @@ class GameViewModel @Inject constructor(
             if (finalScore > currentHighScore) {
                 sharedPreferences.edit().putInt(HIGH_SCORE_KEY, finalScore).apply()
             }
+            val coins = sharedPreferences.getInt(COIN_KEY, 0)
+            sharedPreferences.edit().putInt(COIN_KEY, coins + finalScore / 10).apply()
             _gameState.value = GameScreenState.GameOver(finalScore, sharedPreferences.getInt(HIGH_SCORE_KEY, 0))
         }
         startChickenMovement()
@@ -340,7 +424,7 @@ class GameViewModel @Inject constructor(
             if (!currentChicken.isRaging) {
                 _chickenState.value = currentChicken.copy(
                     isRaging = true,
-                    rageEndTime = System.currentTimeMillis() + 5000L, // 5 seconds rage
+                    rageDuration = 5f, // 5 seconds rage
                     speedX = currentChicken.speedX * 1.5f,
                     speedY = currentChicken.speedY * 1.5f
                 )
@@ -360,5 +444,16 @@ class GameViewModel @Inject constructor(
         powerUpJob?.cancel()
         _powerUps.value = emptyList()
         _gameState.value = GameScreenState.Ready
+        _chickenState.value = _chickenState.value.copy(
+            isRaging = false,
+            speedX = 0.005f,
+            speedY = 0.005f,
+        )
     }
+}
+
+fun Context.findActivity(): Activity? = when (this) {
+    is Activity -> this
+    is ContextWrapper -> baseContext.findActivity()
+    else -> null
 }

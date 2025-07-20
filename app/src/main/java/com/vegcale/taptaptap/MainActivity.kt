@@ -21,6 +21,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
@@ -39,12 +41,17 @@ import kotlinx.coroutines.launch
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
         setContent {
             taptaptapTheme {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
+                    val windowInsetsController =
+                        WindowCompat.getInsetsController(window, window.decorView)
+                    windowInsetsController.hide(WindowInsetsCompat.Type.systemBars())
+
                     val scope = rememberCoroutineScope()
                     LaunchedEffect(Unit) {
                         scope.launch {
@@ -65,6 +72,7 @@ class MainActivity : ComponentActivity() {
 
                             BannerAd(adView, Modifier)
                         }
+
                         TapTapTapApp()
                     }
                 }
@@ -75,7 +83,6 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun BannerAd(adView: AdView, modifier: Modifier = Modifier) {
-    // Ad load does not work in preview mode because it requires a network connection.
     if (LocalInspectionMode.current) {
         Box { Text(text = "Google Mobile Ads preview banner.", modifier.align(Alignment.Center)) }
         return
@@ -89,7 +96,7 @@ fun TapTapTapApp() {
     val navController = rememberNavController()
     NavHost(navController = navController, startDestination = "game") {
         composable("game") {
-            GameScreen()
+            GameScreen(onNavigateToShop = { navController.navigate("shop") })
         }
         composable("settings") {
             SettingsScreen(navController = navController)

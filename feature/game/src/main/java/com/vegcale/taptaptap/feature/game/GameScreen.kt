@@ -4,8 +4,6 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.ui.res.painterResource
-import com.vegcale.taptaptap.feature.game.R
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -22,6 +20,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.ShoppingBag
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -36,16 +35,22 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 
 @Composable
 fun GameScreen(
+    onNavigateToShop: () -> Unit,
     viewModel: GameViewModel = hiltViewModel()
 ) {
     val gameState by viewModel.gameState.collectAsState()
@@ -63,7 +68,11 @@ fun GameScreen(
             }
         }
         GameScreenState.Ready -> {
-            StartScreen(onStartGame = { viewModel.startGame() })
+            StartScreen(
+                setSkinId = { viewModel.setSkinId() },
+                onStartGame = { viewModel.startGame() },
+                onNavigateToShop = onNavigateToShop,
+            )
         }
         is GameScreenState.Playing -> {
             val playingState = gameState as GameScreenState.Playing
@@ -81,13 +90,21 @@ fun GameScreen(
         }
         is GameScreenState.GameOver -> {
             val gameOverState = gameState as GameScreenState.GameOver
-            GameOverScreen(gameOverState.finalScore, gameOverState.highScore, onRestartGame = { viewModel.resetGame() })
+            GameOverScreen(gameOverState.finalScore, gameOverState.highScore, onRestartGame = { viewModel.resetGame() }, onNavigateToShop = onNavigateToShop, viewModel = viewModel)
         }
     }
 }
 
 @Composable
-fun StartScreen(onStartGame: () -> Unit) {
+fun StartScreen(
+    setSkinId: () -> Unit,
+    onStartGame: () -> Unit,
+    onNavigateToShop: () -> Unit,
+) {
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
+        setSkinId()
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -118,6 +135,15 @@ fun StartScreen(onStartGame: () -> Unit) {
             Icon(Icons.Default.PlayArrow, contentDescription = "Start Game", modifier = Modifier.size(32.dp))
             Spacer(modifier = Modifier.size(8.dp))
             Text(modifier = Modifier.padding(10.dp), text = "ゲームスタート", fontSize = 24.sp)
+        }
+        Spacer(modifier = Modifier.height(16.dp))
+        Button(
+            onClick = onNavigateToShop,
+            shape = CircleShape
+        ) {
+            Icon(Icons.Default.ShoppingBag, contentDescription = "Go to Shop", modifier = Modifier.size(32.dp))
+            Spacer(modifier = Modifier.size(8.dp))
+            Text(modifier = Modifier.padding(10.dp), text = "スキンを変更する", fontSize = 24.sp)
         }
     }
 }
@@ -158,10 +184,14 @@ fun PlayingScreen(
 
             // Draw chicken
             if (chickenState.isVisible) {
+                val chickenDrawable = when (chickenState.skinId) {
+                    "turtle" -> if (chickenState.isRaging) R.mipmap.angry_turtle else R.mipmap.turtle
+                    "ninja" -> if (chickenState.isRaging) R.mipmap.angry_ninja else R.mipmap.ninja
+                    else -> if (chickenState.isRaging) R.mipmap.angry_chicken else R.mipmap.chicken
+                }
                 Image(
-                    painter = painterResource(id = R.drawable.chicken),
+                    painter = painterResource(id = chickenDrawable),
                     contentDescription = "Chicken",
-                    colorFilter = if (chickenState.isRaging) ColorFilter.tint(Color.Red) else null,
                     modifier = Modifier
                         .size(chickenState.size.dp)
                         .offset { 
@@ -170,7 +200,7 @@ fun PlayingScreen(
                                 (chickenState.y * height - (chickenState.size * density) / 2f).toInt()
                             )
                         }
-                        .rotate(chickenState.rotation)
+//                        .rotate(chickenState.rotation)
                 )
             }
 
@@ -237,7 +267,13 @@ fun PlayingScreen(
 }
 
 @Composable
-fun GameOverScreen(finalScore: Int, highScore: Int, onRestartGame: () -> Unit) {
+fun GameOverScreen(
+    finalScore: Int,
+    highScore: Int,
+    onRestartGame: () -> Unit,
+    onNavigateToShop: () -> Unit,
+    viewModel: GameViewModel = hiltViewModel()
+) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -274,6 +310,27 @@ fun GameOverScreen(finalScore: Int, highScore: Int, onRestartGame: () -> Unit) {
             Icon(Icons.Default.Refresh, contentDescription = "Restart Game", modifier = Modifier.size(32.dp))
             Spacer(modifier = Modifier.size(8.dp))
             Text(modifier = Modifier.padding(10.dp), text = "もう一度プレイ", fontSize = 24.sp)
+        }
+        Spacer(modifier = Modifier.size(16.dp))
+        Button(
+            onClick = onNavigateToShop,
+            shape = CircleShape
+        ) {
+            Icon(Icons.Default.ShoppingBag, contentDescription = "Go to Shop", modifier = Modifier.size(32.dp))
+            Spacer(modifier = Modifier.size(8.dp))
+            Text(modifier = Modifier.padding(10.dp), text = "スキンを変更する", fontSize = 24.sp)
+        }
+        Spacer(modifier = Modifier.height(16.dp))
+
+        val activity = LocalContext.current.findActivity()
+        Button(
+            onClick = {
+                if (activity == null) return@Button
+                viewModel.showRewardedAd(activity) {  }
+            },
+            shape = CircleShape
+        ) {
+            Text(text = "広告を見て+10コイン", fontSize = 24.sp)
         }
     }
 }

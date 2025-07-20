@@ -16,8 +16,8 @@ android {
         applicationId = "com.vegcale.taptaptap"
         minSdk = 24
         targetSdk = 35
-        versionCode = 3
-        versionName = "2"
+        versionCode = 5
+        versionName = "5"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -33,6 +33,13 @@ android {
             type = "String",
             name = "adUnitId",
             value = adUnitId,
+        )
+
+        val rewardAdUnitId = properties.getProperty("rewardAdUnitId") ?: ""
+        buildConfigField(
+            type = "String",
+            name = "rewardAdUnitId",
+            value = rewardAdUnitId,
         )
     }
 
@@ -70,6 +77,7 @@ dependencies {
     implementation(project(":core"))
     implementation(project(":feature:game"))
     implementation(project(":feature:settings"))
+    implementation(project(":feature:shop"))
     implementation(project(":feature:shop"))
 
     implementation("androidx.core:core-ktx:1.12.0")
